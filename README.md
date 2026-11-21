@@ -39,6 +39,14 @@ with the date prominent so the day it sums up is unmistakable.
 `entry.png` to `$MAKEFUN_OUTPUT_DIR/entry.png` (default `/output`),
 byte-identical on every run.
 
+To try it locally, run `MAKEFUN_OUTPUT_DIR=/tmp/news-out python3 main.py`
+(or `python3 main.py --output-dir /tmp/news-out` to pass the folder on the
+command line instead). The program creates the folder if needed, copies the
+image, then re-reads both files from disk and only reports success when the
+byte counts match — it prints `Wrote 265818 bytes to .../entry.png` and
+exits 0, or prints an error and exits non-zero if the source is missing or
+the copy does not match.
+
 ## License
 
 MIT — see `LICENSE`.

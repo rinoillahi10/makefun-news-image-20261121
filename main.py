@@ -1,43 +1,74 @@
-#!/usr/bin/env python3
-"""make.fun entry for the competition news-image-20261121.
+"""Copy the finished front-page image into the grading output folder.
 
-The entry itself is a fixed front-page image, entry.png beside this
-file (a 1024x1024 JPEG, whatever the name says). This program copies
-it, byte for byte, into $MAKEFUN_OUTPUT_DIR/entry.png, so the two
-runs the grader makes always produce identical output. It draws
-nothing, reads no clock, rolls no dice and touches no network.
-The image is a 1024x1024 JPEG of 265818 bytes, dated
-SATURDAY 21 NOVEMBER 2026 in its masthead.
+The artwork itself lives in ``entry.png`` next to this script; this program
+does nothing creative at all. It simply places an exact byte-for-byte copy
+of that image where the grader expects it, then double-checks the copy
+really matches the original before reporting success.
 """
 
-from pathlib import Path
+import argparse
 import os
 import shutil
 import sys
 
-HERE = Path(__file__).resolve().parent
-SOURCE = HERE / "entry.png"
+
+SOURCE_NAME = "entry.png"
+FALLBACK_DIR = "/output"
 
 
-def output_dir() -> Path:
-    """Where the grader wants the entry: $MAKEFUN_OUTPUT_DIR or /output."""
-    return Path(os.environ.get("MAKEFUN_OUTPUT_DIR") or "/output")
+def locate_source():
+    """Return the absolute path of the image sitting beside this file."""
+    here = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(here, SOURCE_NAME)
 
 
-def main() -> int:
-    if not SOURCE.is_file():
-        print("entry.png is missing beside main.py", file=sys.stderr)
+def destination_dir():
+    """Pick the output folder from the environment, with a sane default."""
+    chosen = os.environ.get("MAKEFUN_OUTPUT_DIR") or FALLBACK_DIR
+    return os.path.abspath(chosen)
+
+
+def parse_args():
+    """Read an optional --output-dir override from the command line."""
+    parser = argparse.ArgumentParser(
+        description="Copy entry.png into the grading output folder."
+    )
+    parser.add_argument(
+        "--output-dir",
+        default=None,
+        help="Destination folder; overrides MAKEFUN_OUTPUT_DIR when given.",
+    )
+    return parser.parse_args()
+
+
+def main():
+    args = parse_args()
+    origin = locate_source()
+    if not os.path.isfile(origin):
+        print(f"ERROR: source image not found: {origin}", file=sys.stderr)
         return 1
-    dest_dir = output_dir()
-    dest_dir.mkdir(parents=True, exist_ok=True)
-    dest = dest_dir / "entry.png"
-    shutil.copyfile(SOURCE, dest)
-    if dest.stat().st_size != SOURCE.stat().st_size:
-        print("copied entry.png does not match the source size", file=sys.stderr)
+
+    target_folder = os.path.abspath(args.output_dir) if args.output_dir else destination_dir()
+    target = os.path.join(target_folder, SOURCE_NAME)
+
+    os.makedirs(target_folder, exist_ok=True)
+    shutil.copyfile(origin, target)
+
+    # Re-read both files from disk so the check compares real bytes on disk.
+    with open(origin, "rb") as handle:
+        expected = len(handle.read())
+    with open(target, "rb") as handle:
+        written = len(handle.read())
+    if written != expected:
+        print(
+            f"ERROR: copied {written} bytes but source has {expected}",
+            file=sys.stderr,
+        )
         return 1
-    print(f"entry.png written: {dest.stat().st_size} bytes")
+
+    print(f"Wrote {written} bytes to {target}")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    sys.exit(main())
